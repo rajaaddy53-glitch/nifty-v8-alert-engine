@@ -1,0 +1,75 @@
+name: NIFTY V8 Market Alerts
+
+on:
+  schedule:
+    - cron: "30 3 * * 1-5"
+  workflow_dispatch:
+
+jobs:
+  morning:
+    runs-on: ubuntu-latest
+    timeout-minutes: 220
+
+    env:
+      FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      V8_STOP_HOUR: "12"
+      V8_STOP_MINUTE: "20"
+      V8_STATE_FILE: "v8_state.json"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run NIFTY V8 morning session
+        run: python live_candle_engine_github.py
+
+      - name: Save V8 state
+        uses: actions/upload-artifact@v4
+        with:
+          name: v8-state
+          path: v8_state.json
+          retention-days: 1
+
+  afternoon:
+    needs: morning
+    runs-on: ubuntu-latest
+    timeout-minutes: 230
+
+    env:
+      FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      V8_STOP_HOUR: "15"
+      V8_STOP_MINUTE: "35"
+      V8_STATE_FILE: "v8_state.json"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download V8 state
+        uses: actions/download-artifact@v4
+        with:
+          name: v8-state
+          path: .
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run NIFTY V8 afternoon session
+        run: python live_candle_engine_github.py
